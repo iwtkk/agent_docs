@@ -17,10 +17,12 @@ example/
   src/
   configs/
 
+例としてexample dirの直下にいる時はdir-example branchを作成してそこで編集して
+
 tool_registry_template
 path_registry_template
 この二つは
 
 tool_registry.yml
 path_registry.yml
-として作成してください
+としてdocsに作成してください
