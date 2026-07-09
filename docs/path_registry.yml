@@ -1,0 +1,35 @@
+project:
+  root: "/data/iwata/crop_pe"
+
+data:
+  # data は /data/iwata/3D_digital_twin_marmoset_data/.../training_data へのシンボリックリンク
+  images_dir: "/data/iwata/crop_pe/data/images"
+  annotations_dir: "/data/iwata/crop_pe/data/annotations"
+  # COCO形式アノテーション（bbox + 20点keypoints、1画像1個体）
+  ann_all: "/data/iwata/crop_pe/data/annotations/single.json"          # 全3382枚
+  ann_train: "/data/iwata/crop_pe/data/annotations/single_train.json"  # 2720枚
+  ann_test: "/data/iwata/crop_pe/data/annotations/single_test.json"    # 662枚
+
+  # Marmoset3K: 1画像1〜2個体（pair/single）、2カテゴリ(white/blue head)、maskGTなし
+  m3k_images_dir: "/data/iwata/crop_pe/Marmoset3K/images"
+  m3k_ann_train: "/data/iwata/crop_pe/Marmoset3K/annotations/all_train.json"  # 2624枚
+  m3k_ann_test: "/data/iwata/crop_pe/Marmoset3K/annotations/all_test.json"    # 549枚
+
+models:
+  # SAM3 リポジトリ本体（コード）とDL済みチェックポイントは segment/ 配下。
+  sam3_repo: "/data/iwata/crop_pe/segment/sam3"
+  # 画像モデル(build_sam3_image_model)には base sam3.pt を使う。
+  # 注意: segment/sam3.1/sam3.1_multiplex.pt はキー命名非互換で画像モデルには使えない。
+  sam3_image_checkpoint: "/data/iwata/crop_pe/segment/sam3_model/sam3.pt"
+  sam3_bpe: "/data/iwata/crop_pe/segment/sam3/sam3/assets/bpe_simple_vocab_16e6.txt.gz"
+  # 参考: 既存のマーモセット用検出器/姿勢推定器（案Cで使用、案Aでは未使用）
+  yolox_bbox: "/data/iwata/crop_pe/data/pretrained/tk_yolox_l_8x8_300e_coco_V0p10_best_bbox_mAP_epoch_282.pth"
+  hrnet_pose: "/data/iwata/crop_pe/data/pretrained/tk_hrnet_w48_coco_384x288_dark_epoch_70.pth"
+
+outputs:
+  marmoset_masks: "/data/iwata/crop_pe/outputs/marmoset_masks"
+  marmoset_overlay: "/data/iwata/crop_pe/outputs/marmoset_overlay"
+  # Marmoset3K instance segmentation 出力
+  m3k_instance_masks: "/data/iwata/crop_pe/outputs/marmoset3k_instance_masks"  # IDマップPNG + instances_coco.json
+  m3k_overlay: "/data/iwata/crop_pe/outputs/marmoset3k_overlay"
+  logs: "/data/iwata/crop_pe/outputs/logs"

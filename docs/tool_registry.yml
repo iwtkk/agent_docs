@@ -1,0 +1,109 @@
+tools:
+  - name: predict_marmoset_mask
+    status: active
+    owner_file: src/crop_pe/predict_marmoset_mask.py
+
+    purpose: >
+      アノテ済みマーモセット画像に対し、GTの bbox（および可視 keypoint）を SAM3 の
+      プロンプトとして与えマスクを生成・保存する（案A: GTプロンプト駆動）。
+      SAM3 画像モデル(build_sam3_image_model, enable_inst_interactivity=True)の
+      predict_inst_batch を用いる。1画像に複数個体がある場合は box ごとに独立マスクを
+      得る instance segmentation に対応（output_mode="instance"）。単一個体2値運用は
+      output_mode="binary"。
+
+    output_modes:
+      binary: >
+        全個体の和集合を 0/255 の2値マスク（1画像1PNG）で保存。
+        単一個体データセット(data/, single*.json)向け。
+      instance: >
+        個体IDマップPNG（0=背景, 1..K=個体）と COCO形式 instances_coco.json
+        （RLE segmentation, category_id, bbox, score）を保存。複数個体データセット
+        (Marmoset3K, pair画像)向け。semantic ではなく個体ごとに別マスク・別IDになる。
+
+    inputs:
+      - name: images
+        type: directory
+        path_source: path_registry.data.images_dir
+        file_pattern: "*.png"
+        shape: "[N, H, W, 3]"
+        dtype: uint8
+        color_order: RGB
+        description: "マーモセット実験画像（1画像1個体）"
+
+      - name: annotation
+        type: file
+        path_source: path_registry.data.ann_all
+        format: COCO json
+        description: >
+          bbox [x, y, w, h] と 20点keypoints [x, y, v] を含む。
+          single.json は全3382枚、single_train.json は2720枚、single_test.json は662枚。
+
+      - name: checkpoint
+        type: file
+        path_source: path_registry.models.sam3_image_checkpoint
+        format: PyTorch (base sam3.pt)
+        description: >
+          facebook/sam3 の base チェックポイント。detector.*/tracker.* を含み
+          _load_checkpoint が画像モデル+interactive predictor に読み込む。
+          注意: sam3.1_multiplex.pt はキー命名が非互換で画像モデルには使えない。
+
+      - name: bpe
+        type: file
+        path_source: path_registry.models.sam3_bpe
+        description: "SimpleTokenizer 用 BPE 語彙 (bpe_simple_vocab_16e6.txt.gz)"
+
+    outputs:
+      - name: masks
+        type: directory
+        path_source: path_registry.outputs.marmoset_masks
+        file_pattern: "*.png"
+        shape: "[N, H, W]"
+        dtype: uint8
+        value_range: "0 or 255"
+        description: "個体領域を255、それ以外を0とする2値マスク（画像と同じbasename）"
+
+      - name: overlay
+        type: directory
+        path_source: path_registry.outputs.marmoset_overlay
+        file_pattern: "*.png"
+        optional: true
+        description: "元画像にマスク(青)とbbox(緑)を重畳した確認用画像"
+
+    command:
+      example_binary: >
+        .venv/bin/python -m src.crop_pe.predict_marmoset_mask
+        --config configs/predict_marmoset_mask.yml
+      example_instance: >
+        .venv/bin/python -m src.crop_pe.predict_marmoset_mask
+        --config configs/predict_marmoset3k_instance.yml
+      options:
+        - "--limit N        先頭N枚のみ処理（スモークテスト）"
+        - "--prompt-mode {box|box+keypoints}  プロンプト方式の上書き"
+        - "--output-mode {binary|instance}    出力方式の上書き"
+        - "--overwrite      既存マスクをスキップせず上書き"
+
+    configs:
+      - "configs/predict_marmoset_mask.yml        # data/ 単一個体, binary"
+      - "configs/predict_marmoset3k_instance.yml  # Marmoset3K 複数個体, instance"
+
+    config:
+      file: configs/predict_marmoset_mask.yml
+      keys:
+        - prompt_mode      # "box"(既定) or "box+keypoints"
+        - batch_size       # set_image_batch のバッチ枚数
+        - mask_threshold   # predict_inst のマスクlogit閾値（>threshold を前景）
+        - overwrite
+        - limit
+        - device
+
+    notes:
+      - "1画像1個体前提（single*.json は image_id 重複なし）。"
+      - "keypoint の v>0 のみを正のpointプロンプトとして使用。"
+      - "実行は sam3 リポジトリと同名の作業ディレクトリを避けること（import sam3 の衝突回避）。"
+      - "cwd 直下に sam3/ ディレクトリを置かない（segment/ 配下に隔離済み）。"
+
+    validation:
+      - "出力マスク枚数が処理対象枚数と一致する"
+      - "マスク値が0または255のみ"
+      - "checkpoint ロード時に missing_keys が出ない（base sam3.pt であること）"
+      - "前景画素が概ね bbox 内に収まる（in_bbox ≈ 100%）"
