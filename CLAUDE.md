@@ -26,3 +26,5 @@ path_registry_template
 tool_registry.yml
 path_registry.yml
 としてdocsに作成してください
+
+あと図を作る時は毎回曖昧に指示するので詳細は聞き返して聞いて
